@@ -1,12 +1,14 @@
-U.S. Imports of Goods Forecasting
+U.S. Imports of Goods from World - Forecasting in R
 
 This project analyzes monthly U.S. imports of goods on a customs basis using the FRED series IMP0015 and compares multiple time series forecasting approaches in R.
 The workflow includes exploratory analysis, variance stabilization, stationarity testing, ARIMA and ETS modeling, benchmark comparison, and out-of-sample forecast evaluation.
+
 
 Project goal
 
 The goal is to identify an accurate and interpretable model for forecasting monthly U.S. imports of goods from the world using data from 2000 to 2026.
 The analysis evaluates whether more complex models such as seasonal ARIMA and ETS outperform simpler benchmark methods like naive and seasonal naive forecasts.
+
 
 Dataset
 
@@ -16,6 +18,7 @@ Dataset
 * Frequency: Monthly.
 * Analysis window: 2000-01 to 2026-05.
 * Not seasonally adjusted.
+
 
 
 Methods
@@ -56,10 +59,12 @@ Tools and packages
 * readr
 * scales
 
+
 Repository contents
 
 * US_imports_of_Goods_from_World.Rmd — main analysis and forecasting workflow.
 * IMP0015.csv — input dataset used in the project.
+
 
 Main takeaway
 
@@ -75,6 +80,7 @@ Skills demonstrated
 - Forecast evaluation using RMSE, MAE, and MAPE.
 - Residual diagnostics with ACF and Ljung–Box tests.
 - Communicating technical results in a reproducible R Markdown workflow.
+  
 
 Author: Monica Boghean, MBA in Business Analytics Data analytics, visualization, and forecasting portfolio project
 
