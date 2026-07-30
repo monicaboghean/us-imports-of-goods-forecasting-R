@@ -56,7 +56,7 @@ library(dplyr)
 imports_raw <- read_csv("IMP0015.csv")
 glimpse(imports_raw)
 head(imports_raw)
-view(imports_raw)
+
 ```
 
 # Data preparation
@@ -160,7 +160,7 @@ The KPSS test has a null hypothesis of stationarity and an alternative hypothesi
 Therefore, we fail to reject the null hypothesis and treat the first‑differenced log transformed series as stationary.
 This result, combined with the visual inspection, indicates that a single regular difference (d=1) is sufficient on the log transformed data, and additional differencing is not required before fitting ARIMA models.
 
-However, I will continue the analysis by doing also a seasonal difference and see the impact on the time series.
+However, I will continue the analysis by doing also seasonal and double differences and see the impact on the time series.
 
 ## Seasonal difference
 
@@ -234,9 +234,11 @@ This aligns with the KPSS results: the level of the log series is non‑stationa
 Following the standard recommendation to use the smallest differencing orders that satisfy stationarity, I set the ARIMA differencing parameters to d=1 and D=0.
 All subsequent model identification, estimation, and forecasting are therefore based on a series that has been under a log transformation, differenced once non‑seasonally, without additional seasonal differencing.
 
+However, for learning purposes, I will look at the ACF and PACF plots for the first differenced log series, seasonal differenced log series and double differenced log series.
+
 # ACF and PACF
 
-## First-differenced series
+## First-differenced log series
 
 ```{r acf-pacf-diff1, fig.height=8}
 imports_diff %>%
@@ -244,7 +246,7 @@ imports_diff %>%
   labs(title = "First-Differenced Log Transformed Series with ACF and PACF")
 ```
 
-Applying a logarithmic transformation to imports stabilized the variance but did not materially change the autocorrelation and partial autocorrelation structure of the first‑differenced series. This indicates that the underlying dynamic relationships across months are similar on both the original and log scales, while the log transformation primarily improves variance properties and interpretability (differences as growth rates).
+Applying a logarithmic transformation to imports stabilized the variance but did not materially impacted the autocorrelation and partial autocorrelation structure of the first‑differenced series. This indicates that the underlying dynamic relationships across months may have similarities on both the original and log scales, while the log transformation primarily improves variance properties and interpretability (differences as growth rates).
 As such, the top panel shows the first difference of the log transformed time series fluctuating around a roughly constant 0 mean with no visible trend, preserving a clear seasonal pattern.
 There are a few large spikes that likely correspond to major economic shocks, but outside those episodes, the variance looks relatively stable over time.
 The ACF shows many bars outside the significance bounds at many lags, not just at the seasonal lags. This suggests that there is still meaningful autocorrelation in the differenced log series, so it is not behaving like white noise.
@@ -259,7 +261,7 @@ imports_seas %>%
   labs(title = "Seasonal-Differenced Log Series with ACF and PACF")
 ```
 
-After doing a seasonal difference on the log series, we can observe that the series oscilates around zero, with clear cycles but no obvious trend, suggesting that the combination of log transform and seasonal differencing has largely removed both level and seasonality. Large swings around the late 2000s and early 2020s remain, reflecting structural shocks rather than regular seasonality.
+After doing a seasonal difference on the log series, we can observe that the series oscilates around zero, with clear cycles but no obvious trend, suggesting that the combination of log transformation and seasonal differencing has largely removed both level and seasonality. Large swings around the late 2000s and early 2020s remain, reflecting structural shocks rather than regular seasonality.
 With regards to the ACF, the figure shows a slow, geometric-like decay from high positive values at low lags crossing zero and becoming negative around lags 10-30, before tapering back towards zero.
 The PACF on the other side has a large spike at lag 1, followed by smaller spikes at subsequent lags, most of them falling within the significance bounds. 
 
@@ -296,7 +298,7 @@ Explanation of why this candidate model was considered:
 
 \<ARIMA(1,1,0)(0,0,3)[12]\>
 
- * In the PACF figure, up to lag 12, the largest spike is the negative value at lag 1, which corresponds to a non-seasonal AR(1) term.
+ * In the PACF figure of the first differenced log series, up to lag 12, the largest spike is the negative value at lag 1, which corresponds to a non-seasonal AR(1) term.
  * Only one regular difference was applied to the log transformed series, so the non-seasonal differencing order is d=1 and the seasonal differencing order is D=0.
  * In the ACF figure, there are significant positive spikes at lags 12, 24 and 36, which correspond to a seasonal MA(3) component with period 12.
 
@@ -350,7 +352,7 @@ Using the log‑transformed imports series in the training set, I estimated two 
 * An automatic seasonal ARIMA model, selected by the ARIMA() function, with specification ARIMA(3,1,0)(2,0,0)[12].This model includes one regular difference on the log scale, three non‑seasonal autoregressive terms, and two seasonal autoregressive terms with annual seasonality.
 * An automatic ETS model, denoted ETS(A, Ad, A), which is an exponential smoothing model with additive errors, damped additive trend, and additive seasonality.
 
-These models are fitted to the log‑transformed training data, and will be evaluated on a held‑out test set. I will compare their in‑sample specifications and residual diagnostics, then generate multi‑step forecasts over the test horizon and assess performance using RMSE, MAE, and MAPE (on both the log scale and the original imports scale after back‑transformation) to determine which model delivers better out‑of‑sample accuracy.
+These models are fitted to the log‑transformed training data, and will be evaluated on a held‑out test set. I will compare their in‑sample specifications and residual diagnostics, then generate forecasts over the test horizon and assess performance using RMSE, MAE, and MAPE (on both the log scale and the original imports scale after back‑transformation) to determine which model delivers better out‑of‑sample accuracy.
 
 # ARIMA output
 
@@ -361,10 +363,10 @@ fit_train %>%
 ```
 
 The automatic ARIMA selection on the training data yields a seasonal ARIMA model of the form ARIMA(3,1,0)(2,0,0)[12] for the log transformed imports series.
-This specification uses one non‑seasonal difference to remove the unit root, three non‑seasonal autoregressive terms AR(3), and two seasonal autoregressive terms, seasonal AR(2).
+This specification uses one non‑seasonal difference to remove the unit root, three non‑seasonal autoregressive terms AR(3), and two seasonal autoregressive terms, AR(2).
 The estimated non‑seasonal AR coefficients are -0.2581, 0.0708, and 0.393 with standard errors of 0.0577, 0.0589, and 0.058 respectively. The seasonal AR coefficients are 0.4975, and 0.2611, with standard errors of 0.0603, and 0.0641, indicating that the seasonal AR effects are statistically significant and play an important role in capturing the yearly pattern in the differenced log series.
 The innovation variance is estimated at approximately 0.002036, and the model attains an AIC of -907.35, AICc of -907.04, and BIC of -885.65 on the training set.
-These relatively low (more nagative) information-criterion values, together with the significance of the key parameters, support using ARIMA(3,1,0)(2,0,0)[12] as the preferred ARIMA specification in the subsequent residual diagnostics and in the out-of-sample forecast comparison with the ETS model.
+
 
 # ARIMA residual diagnostics
 
@@ -378,11 +380,11 @@ The residual diagnostic plots clearly indicate:
 1. Plot 1 (Innovation Residuals) – data is mainly flat and stationary, moving around a mean of 0 - no obvious remaining trend or volatility.
 It shows some large negative spikes before January 2010 and after January 2020, suggesting some major structural shocks in the data.
 2. Plot 2 (ACF plot) – several spikes extending beyond the blue significance bands, both positive and negative, meaning that there is leftover structure the ARIMA model hasn't fully explained.
-3. Plot 3 (Residual Histogram) – residuals look roughly symmetric and bell-shaped, with most values near zero, suggestiong the Gaussian error assumption is broadly reasonable.
+3. Plot 3 (Residual Histogram) – residuals look roughly symmetric and bell-shaped, with many values near zero, suggestiong the Gaussian error assumption is broadly reasonable.
 
 So, residual diagnostics indicate that, while the ARIMA(3,1,0)(2,0,0)[12] model removes most of the systematic structure in the log‑differenced imports series, the residual ACF still exhibits several significant spikes. This suggests remaining short‑run dependence, so alternative ARIMA specifications with additional or adjusted AR/MA terms will be considered and compared later in this project based on information criteria, residual autocorrelation, and out‑of‑sample accuracy.
 
-First, I will also do the Ljung-Box test to see if the residuals are independent (white noise) or correlated.
+But first, I will also do the Ljung-Box test to see if the residuals are independent (white noise) or correlated.
 
 ```{r arima-train-ljung}
 fit_train %>%
@@ -403,7 +405,7 @@ fit_train %>%
   report()
 ```
 
-The ETS(A, Ad, A) model fitted to the log‑transformed imports series attains an AICc of about −178, whereas the automatic ARIMA(3,1,0)(2,0,0)[12] model achieves an AICc of about −907 on the same dataset. Since AICc is used to compare models estimated on identical data, the much more negative value for the ARIMA specification indicates a substantially better balance between goodness of fit and model complexity than for ETS.
+Check the residual diagnostics for the ETS model:
 
 # ETS residual diagnostics
 
@@ -413,7 +415,7 @@ fit_train %>%
   gg_tsresiduals(lag=36)
 ```
 
-Residual diagnostics for the ETS(A, Ad, A) model on the log‑transformed imports series indicate that the model does not adequately capture the temporal dependence. The residual ACF displays numerous significant spikes across many lags, suggesting pronounced remaining autocorrelation. Together with the relatively high AICc compared to the ARIMA(3,1,0)(2,0,0)[12] model, this evidence supports favoring the ARIMA specification over ETS for this series.
+Residual diagnostics for the ETS(A, Ad, A) model on the log‑transformed imports series indicate that the model does not adequately capture the temporal dependence. The residual ACF displays numerous significant spikes across many lags, suggesting pronounced remaining autocorrelation. At this time, this evidence supports favoring the ARIMA specification over ETS for this series. However, the models will be compared by their specifications on a hold-out test set.
 
 ```{r ets-train-ljung}
 fit_train %>%
@@ -427,8 +429,10 @@ For the ETS(A, Ad, A) model, the Ljung–Box test was computed up to lag 36 with
 
 # Summary so far
 So far, my diagnostics say:
-* ARIMA fits much better than ETS in AICc.
+* ARIMA fits much better than ETS by exploring the residual diagnostics plots.
 * ARIMA residuals have less autocorrelation than ETS, but still some remaining structure and a low Ljung-Box p-value.
+* The comparison between ARIMA and ETS will be done on a hold-out test set, to have a clear picture in terms of RMSE, MAE, and MAPE values.
+
 Going further, I will try a few alternative ARIMA models at the price that a more complex model might reduce residual autocorrelation but lose simplicity at the same time. This is why I will also include two simpler benchmarks: naive and seasonal naive models.
 
 
@@ -437,14 +441,11 @@ Going further, I will try a few alternative ARIMA models at the price that a mor
 ```{r arima-models}
 fit_arima <- imports_log %>%
   model(
-    arima_1 = ARIMA(log_IMP0015 ~ pdq(1,1,0) + PDQ(0,0,3)),
     auto_arima = ARIMA(log_IMP0015, stepwise = FALSE, approx = FALSE),
     arima_2 = ARIMA(log_IMP0015 ~ pdq(3,1,0) + PDQ(0,0,3)),
     arima_3 = ARIMA(log_IMP0015 ~ pdq(2,1,1) + PDQ(2,0,0)),
-    arima_4 = ARIMA(log_IMP0015 ~ pdq(2,1,1) + PDQ(0,0,2)),
-    naive = NAIVE(log_IMP0015),
-    snaive = SNAIVE(log_IMP0015)
-  )
+    arima_4 = ARIMA(log_IMP0015 ~ pdq(2,1,1) + PDQ(0,0,2))
+    )
 
 fit_arima
 ```
@@ -456,7 +457,7 @@ arima_ic <- fit_arima %>%
 arima_ic
 ```
 
-Beyond the automatic ARIMA(3,1,0)(2,0,0)[12] model, I also estimated several alternative ARIMA specifications (arima_2, arima_3, and arima_4) that vary the non‑seasonal AR/MA orders and the seasonal components. These additional models were compared using AIC, AICc, and BIC, but none achieved lower information‑criterion values than the automatic ARIMA specification on the full log series. In the subsequent train/test forecast comparison, I therefore focus on the automatic ARIMA model, an ETS benchmark, and simple naive and seasonal naive models, to see which of these models will provide the best out-of-sample accuracy.
+Besides the automatic ARIMA(3,1,0)(2,0,0)[12] model, I also estimated several alternative ARIMA specifications (arima_2, arima_3, and arima_4) that vary the non‑seasonal AR/MA orders and the seasonal components. These additional models were compared using AIC, AICc, and BIC, but none achieved lower information‑criterion values than the automatic ARIMA specification on the full log series. In the subsequent train/test forecast comparison, I therefore focus on the automatic ARIMA model, an ETS benchmark, and simple naive and seasonal naive models, to see which of these models will provide the best out-of-sample accuracy.
 
 
 ```{r fit-train-models}
@@ -465,7 +466,8 @@ fit_train <- train %>%
     auto_arima = ARIMA(log_IMP0015, stepwise = FALSE, approx = FALSE),
     ets_auto   = ETS(log_IMP0015),
     naive_log  = NAIVE(log_IMP0015),
-    snaive_log = SNAIVE(log_IMP0015))
+    snaive_log = SNAIVE(log_IMP0015)
+    )
 
 fit_train
 ```
@@ -490,7 +492,7 @@ acc_compare <- fc_test %>%
 acc_compare
 ```
 
-Forecast accuracy on the held‑out test set was evaluated for all models on the log‑transformed imports series. The seasonal naive model (SNAIVE), which simply repeats last year’s log imports for each month, achieved the lowest RMSE (0.084), MAE (0.066) and MAPE (0.52), outperforming the automatic ARIMA, ETS, and non‑seasonal naive models. This indicates that, given the strong and stable annual seasonality in monthly imports, the seasonal naive method provides the most accurate and parsimonious forecasts over the assessment horizon.
+Forecast accuracy on the held‑out test set was evaluated for all models on the log‑transformed imports series. The seasonal naive model (SNAIVE), which simply repeats last year’s log imports for each month, achieved the lowest RMSE (0.084), MAE (0.066) and MAPE (0.52), outperforming the automatic ARIMA, ETS, and non‑seasonal naive models. This indicates that, given the strong and stable annual seasonality in monthly imports, the seasonal naive method provides the most accurate and parsimonious forecasts over the assessment horizon. In contrast, ETS is the model that has the worst performance in terms of RMSE, MAE, and MAPE on the hold-out test set.
 
 # Forecast plots against actual values on the log transformed series
 
@@ -509,14 +511,15 @@ fc_test %>%
 
 # Best model on the log tranformed series 
 
-To identify an appropriate forecasting model for monthly imports, I first transformed the series using the natural logarithm to stabilize the variance and then applied non‑seasonal differencing to remove the stochastic trend. On this log‑differenced series, I explored a range of seasonal ARIMA and ETS specifications, guided by ACF/PACF plots, information criteria (AIC, AICc, BIC), and residual diagnostics (ACF of residuals and Ljung–Box tests). These diagnostics showed that ETS(A, Ad, A) provided a relatively poor in‑sample fit with high information‑criterion values and strong remaining autocorrelation in the residuals, while the automatic seasonal ARIMA model achieved a much better fit but still left some residual dependence at longer lags.
-Recognizing that simple benchmarks are often competitive in practice, I then fitted two baseline models on the same log‑transformed training data: a non‑seasonal naive random‑walk model and a seasonal naive model that repeats last year’s log imports for each month. All models—ARIMA, ETS, naive, and seasonal naive—were evaluated on a held‑out test set using RMSE, MAE, and MAPE on the log scale. The seasonal naive model attained the lowest RMSE, MAE, and MAPE among all methods, with the naive model second, and both ARIMA and ETS performing worse over the forecast horizon.
+To identify an appropriate forecasting model for monthly imports, I first transformed the series using the natural logarithm to stabilize the variance and then applied non‑seasonal differencing to remove the stochastic trend. On this log‑differenced series, I explored a range of seasonal ARIMA and ETS specifications, guided by ACF/PACF plots, and residual diagnostics (ACF of residuals and Ljung–Box tests). These diagnostics showed that, at a first glance, ETS(A, Ad, A) provided a relatively poor in‑sample fit with strong remaining autocorrelation in the residuals, while the automatic seasonal ARIMA model achieved a much better fit but still left some residual dependence at longer lags.
+Recognizing that simple benchmarks are often competitive in practice, I then fitted two baseline models on the same log‑transformed training data: a non‑seasonal naive model and a seasonal naive model that repeats last year’s log imports for each month. All models, ARIMA, ETS, naive, and seasonal naive, were evaluated on a held‑out test set using RMSE, MAE, and MAPE on the log scale. The seasonal naive model attained the lowest RMSE, MAE, and MAPE among all methods, with the naive model second, and both ARIMA and ETS performing worse over the forecast horizon.
 Taken together, these results indicate that the log‑scale seasonal naive model is the most accurate and parsimonious choice for this series. It leverages the strong and stable annual seasonality present in monthly imports, avoids the complexity and residual autocorrelation issues of more elaborate ARIMA and ETS specifications, and provides the best out‑of‑sample forecast accuracy relative to all other models considered. Consequently, the final forecasts in this study are based on the seasonal naive model, with confidence intervals reflecting the variability observed in the historical data.
 
 
 # Model verification on the back transformed data
 
 When converting the log‑scale forecasts back to the original imports scale by exponentiation, I implicitly assume that the forecast errors on the log scale are approximately symmetric and normal; this back‑transformation can introduce a small bias, and more sophisticated bias‑correction methods are available, but they are not necessary for the purposes of this study.
+
 
 # Create original scale versions
 
@@ -543,6 +546,7 @@ acc_orig
 ```
 To validate that the model ranking is robust on the original imports scale, I back‑transformed both forecasts and actuals by exponentiating the log series. Forecast accuracy was then recomputed in the original units of monthly imports. The seasonal naive model continued to achieve the lowest RMSE, MAE, and MAPE among all models, confirming that its superior performance on the log scale translates into more accurate forecasts on the original scale as well. Naive random walk forecasts were second best, while ARIMA and ETS produced noticeably larger errors. This robustness across both scales strengthens the case for adopting the seasonal naive model as the final forecasting method.
 Therefore, the models were estimated on the log‑transformed imports series to stabilize variance and improve stationarity properties. To assess forecast accuracy on the original imports scale without refitting separate models, the log‑scale forecasts and test observations were exponentiated and evaluated using RMSE, MAE, and MAPE in the original units. This approach preserves the benefits of modeling on the log scale while providing interpretable accuracy measures for the original data.
+
 
 # Conclusion
 
